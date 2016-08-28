@@ -35,6 +35,43 @@ def get_abba(phi,psi,omega):
            else:
                return "Y"		### Bprime
 
+
+def get_seqbin(seq):
+  aa_1=['A','C','D','E','F','G','H','I','K','L','M','N','P','Q','R','S','T','V','W','Y','H']
+  d_aa_1=['a','c','d','e','f','g','h','i','k','l','m','n','p','q','r','s','t','v','w','y','h']
+  if seq in aa_1:
+     bin='L'
+  if seq in d_aa_1:
+     bin='D'
+  if seq == 'p':
+     bin='p'
+  if seq == 'P':
+     bin='P'
+  return bin
+
+def substring_counter(strings,length,n_sub,invert):
+   sub_strings={}
+   for string in strings:
+      if len(string) != length:
+         print 'ERROR-wrong length string'
+      for i in range(length):
+         sub=''
+         for j in range(n_sub):
+            sub=sub+string[(i+j)%length]
+         if sub in sub_strings.keys():
+            sub_strings[sub]=sub_strings[sub]+1
+         else:
+            sub_strings[sub]=1
+	 if invert:
+          inv_sub=invert_ABBA(sub)
+          if inv_sub in sub_strings.keys():
+            sub_strings[inv_sub]=sub_strings[inv_sub]+1
+          else:
+            sub_strings[inv_sub]=1
+         
+   return sub_strings
+
+
 def invert_ABBA(instring):
    bin_list=list(instring)
    outstring=""
@@ -108,7 +145,7 @@ def input_silent(file):
     bb={}
     seq={}
     name={}
-
+    score={}
     decoy_num=0
     silent_file =  open(file,'r').readlines()
     for line in silent_file :
@@ -122,6 +159,7 @@ def input_silent(file):
 
 
         if l[0]=='SCORE:' and l[1] != 'score':
+	    scorel=float(l[1])
             decoy_num=decoy_num+1
             psi_prev=[-100]  # for first residue, don't have to worry about pre-PRO restrictions
             if decoy_num >= 1:
@@ -136,7 +174,7 @@ def input_silent(file):
             if decoy_num >= 1:
                 name[decoy_num]=decoy_name
                 seq[decoy_num]=l[1]
-
+                score[decoy_num]=scorel
         if l[1] in ['E','H','L']  :
             tors=map(float, l[2:5] )
             tbin=get_abba(tors[0],tors[1],tors[2])
@@ -154,7 +192,7 @@ def input_silent(file):
  #   name[decoy_num]=decoy_name
  #   print 'decoy_num', decoy_num
 #    print seq
-    return decoy_num,info,name,seq
+    return decoy_num,info,name,seq,score
 
 def seq_bin_mismatch(sort_str,seq):
     d_aa_1=['a','c','d','e','f','g','h','i','k','l','m','n','p','q','r','s','t','v','w','y','h']

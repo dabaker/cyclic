@@ -44,7 +44,8 @@ for line in list_file:
 
 
 
-decoy_num,info,names,seq=input_silent(input_file)
+decoy_num,info,names,seq,score=input_silent(input_file)
+#print score
 #print info
 abba=[]
 for decoy in info.keys():
@@ -71,7 +72,7 @@ for decoy in info.keys():
         offset=ori.index(permute[0])
  #       print offset, bin_str,permute[0],ori,permute
  #       print permute
-        abba.append( (bin_str,decoy,permute[0],names[decoy],offset,seq[decoy]) )
+        abba.append( (bin_str,decoy,permute[0],names[decoy],offset,seq[decoy],score[decoy]) )
  
 ndecoy=len(abba)
 for i in range(ndecoy):
@@ -96,12 +97,12 @@ for i in range(ndecoy):
 
   #      print offset, bin_str,permute[0]
  #       print permute
-        abba.append( (bin_str,entry[1],permute[0],entry[3]+"_inv",offset,entry[5]+"_inv") )
+        abba.append( (bin_str,entry[1],permute[0],entry[3]+"_inv",offset,entry[5]+"_inv",entry[6]) )
 
 torsion_strings={}
 torsion_strings_inv={}
 seqs={}
-
+scores={}
 offset_list_inv={}
 offset_list={}
 for entry in abba:
@@ -122,10 +123,11 @@ for entry in abba:
         torsion_strings[pdb_tag]=(entry[0],entry[2])
         offset_list[pdb_tag]=entry[4]
         seqs[pdb_tag]=entry[5]
-print 'pdb   pathology  seq   bb_hbonds  tor_bins  alphabet_tor_bins  inv_tor_bins  alphabet_inv_ter_bins'
+        scores[pdb_tag]=entry[6]
+print 'pdb   pathology  seq   score bb_hbonds  tor_bins  alphabet_tor_bins  inv_tor_bins  alphabet_inv_ter_bins'
 for pdb_tag in torsion_strings.keys():
     
-    print pdb_tag,pathology[pdb_tag],seqs[pdb_tag],hbond_list[pdb_tag],torsion_strings[pdb_tag][0],torsion_strings[pdb_tag][1],torsion_strings_inv[pdb_tag][0],torsion_strings_inv[pdb_tag][1]
+    print pdb_tag,pathology[pdb_tag],seqs[pdb_tag],scores[pdb_tag],hbond_list[pdb_tag],torsion_strings[pdb_tag][0],torsion_strings[pdb_tag][1],torsion_strings_inv[pdb_tag][0],torsion_strings_inv[pdb_tag][1]
 abba_strings={}
 abba_names={}
 cluster_strings={}
@@ -136,12 +138,14 @@ sc_in_abba={}
 abba_hb_info={}
 for entry in abba:
 #    clust=int(string.split(entry[3],'.')[1])
+    score=entry[6]
     index= entry[3].find('_0001')
     inv=0
     if "inv" in entry[3]:
         inv=1
     pdb_tag= entry[3][0:index]
     if pathology[pdb_tag]=='fail': continue
+
     sort_str=entry[2]
     if (sort_str > alphabetize_ABBA(invert_ABBA(sort_str))[0]): 
 #        print 'gt',sort_str,  alphabetize_ABBA(invert_ABBA(sort_str))[0]
@@ -220,17 +224,17 @@ for entry in abba:
             hb_in_abba[sort_str][hbonds_str]=1
         seq_in_abba[sort_str].append(seq_str + "  " + clust + hbonds_str +sc_hbonds_str)
         if (sort_str,hbonds_str) in abba_hb_info.keys():
-            abba_hb_info[(sort_str,hbonds_str)].append(seq_str + "  " + clust + hbonds_str +sc_hbonds_str)
+            abba_hb_info[(sort_str,hbonds_str)].append(seq_str + "  " + clust + hbonds_str +sc_hbonds_str + '  score: %s '%score)
         else:
             abba_hb_info[(sort_str,hbonds_str)]=[]
-            abba_hb_info[(sort_str,hbonds_str)].append(seq_str + "  " + clust + hbonds_str +sc_hbonds_str)
+            abba_hb_info[(sort_str,hbonds_str)].append(seq_str + "  " + clust + hbonds_str +sc_hbonds_str + '  score: %s '%score)
     else:
         abba_strings[sort_str]=1
         hb_in_abba[sort_str]={}
         hb_in_abba[sort_str][hbonds_str]=1
         seq_in_abba[sort_str]=[]
         abba_hb_info[(sort_str,hbonds_str)]=[]
-        abba_hb_info[(sort_str,hbonds_str)].append(seq_str + "  " + clust + hbonds_str +sc_hbonds_str)
+        abba_hb_info[(sort_str,hbonds_str)].append(seq_str + "  " + clust + hbonds_str +sc_hbonds_str + '  score: %s '%score)
         seq_in_abba[sort_str].append(seq_str + "  " +  clust + hbonds_str + sc_hbonds_str)
 #        index= entry[3].find('_0001')
 #        pdb_tag= entry[3][0:index]
@@ -269,6 +273,7 @@ inf.sort()
 prev_ABBA=''
 for entry in inf:
     if entry[0] != prev_ABBA:
+
         print
         print entry[0]
         prev_ABBA=entry[0]
