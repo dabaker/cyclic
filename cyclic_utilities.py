@@ -35,6 +35,23 @@ def get_abba(phi,psi,omega):
            else:
                return "Y"		### Bprime
 
+def get_tor_bin_freqs(tor_bin_list):
+#calculate frequencies of torsion bins
+ bin_freq={}
+ bin_freq['A']=0.
+ bin_freq['B']=0.
+ bin_freq['X']=0.
+ bin_freq['Y']=0.
+ for tor_bin in tor_bin_list:
+	for tor in list(tor_bin):
+		bin_freq[tor]=bin_freq[tor]+1
+ tot=bin_freq['A']+bin_freq['B']+bin_freq['X']+bin_freq['Y']
+ ax=(bin_freq['A']+bin_freq['X'])/tot
+ by=(bin_freq['B']+bin_freq['Y'])/tot
+# print 'bin_freq',bin_freq,' symmetrized: ',ax,by
+ return bin_freq,ax,by,tot
+ 
+
 
 def get_seqbin(seq):
   aa_1=['A','C','D','E','F','G','H','I','K','L','M','N','P','Q','R','S','T','V','W','Y','H']
@@ -208,6 +225,16 @@ def seq_bin_mismatch(sort_str,seq):
           if seq[(2*i)] not in d_aa_1: mismatch=mismatch+1
     return mismatch
              
+def flag_aro_pro(s):
+   aro=['W','w','Y','y','F','f']
+   pro=['P','p']
+   n=len(s)
+   a_p=1
+   for i in range(n):
+      j=(i+1)%n
+      if (s[i] in aro and s[j] in pro) or (s[j] in aro and s[i] in pro):
+         a_p=0
+   return a_p
 
 def parse_seq(s):
     d_aa=['DALA','DCYS','DASP','DGLU','DPHE','DGLY','DHIS','DILE','DLYS','DLEU','DMET','DASN','DPRO','DGLN','DARG','DSER','DTHR','DVAL','DTRP','DTYR','DHIS_D']
@@ -240,6 +267,7 @@ def parse_seq(s):
 
 def compute_contacts(pdb,res_column,cutoff2):
 # note changed from "N" to "H"; list names don't reflect this
+    min_sep=2   ## don't count contacts between adjacent residues
     max_hb_to_O=0
     contacts= []
     N_hbonds=[]
@@ -265,8 +293,9 @@ def compute_contacts(pdb,res_column,cutoff2):
             for k in range(3):
                      dist=dist+(xyz1[k]-xyz2[k])**2
             if dist < cutoff2:
-                N_contacts=N_contacts+1
-                contacts.append( (res1,res2) )
+                if abs(res1-res2) > min_sep and abs(res1-res2) < (nres-min_sep): 
+                 N_contacts=N_contacts+1
+                 contacts.append( (res1,res2) )
         N_hbonds.append( (res1,N_contacts) )
         if N_contacts> max_hb_to_O: max_hb_to_O = N_contacts
 

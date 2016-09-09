@@ -124,10 +124,10 @@ for entry in abba:
         offset_list[pdb_tag]=entry[4]
         seqs[pdb_tag]=entry[5]
         scores[pdb_tag]=entry[6]
-print 'pdb   pathology  seq   score bb_hbonds  tor_bins  alphabet_tor_bins  inv_tor_bins  alphabet_inv_ter_bins'
-for pdb_tag in torsion_strings.keys():
-    
-    print pdb_tag,pathology[pdb_tag],seqs[pdb_tag],scores[pdb_tag],hbond_list[pdb_tag],torsion_strings[pdb_tag][0],torsion_strings[pdb_tag][1],torsion_strings_inv[pdb_tag][0],torsion_strings_inv[pdb_tag][1]
+#print 'pdb   pathology  seq   score bb_hbonds  tor_bins  alphabet_tor_bins  inv_tor_bins  alphabet_inv_ter_bins'
+#for pdb_tag in torsion_strings.keys():
+
+ #   print pdb_tag,pathology[pdb_tag],seqs[pdb_tag],scores[pdb_tag],hbond_list[pdb_tag],torsion_strings[pdb_tag][0],torsion_strings[pdb_tag][1],torsion_strings_inv[pdb_tag][0],torsion_strings_inv[pdb_tag][1]
 abba_strings={}
 abba_names={}
 cluster_strings={}
@@ -144,7 +144,9 @@ for entry in abba:
     if "inv" in entry[3]:
         inv=1
     pdb_tag= entry[3][0:index]
-    if pathology[pdb_tag]=='fail': continue
+    if pathology[pdb_tag]=='fail': 
+        print 'Removed 3 hb pathology: ', pdb_tag
+        continue
 
     sort_str=entry[2]
     if (sort_str > alphabetize_ABBA(invert_ABBA(sort_str))[0]): 
@@ -167,8 +169,9 @@ for entry in abba:
         offset_seq.append( (seq_l[(i+offset)%num]) )
     
     seq_str=string.join(offset_seq)
-    print inv,entry[0],sort_str,offset,seqs[pdb_tag],seq_l,seq_str,'seq'
-        
+  #  print inv,entry[0],sort_str,offset,seqs[pdb_tag],seq_l,seq_str,'seq'
+    if flag_aro_pro(seq_str) == 0: 
+        print 'Warning aro-pro dipeptide: ',entry
 
     if inv:  
         clust=pdb_tag+'_inv'
@@ -224,17 +227,17 @@ for entry in abba:
             hb_in_abba[sort_str][hbonds_str]=1
         seq_in_abba[sort_str].append(seq_str + "  " + clust + hbonds_str +sc_hbonds_str)
         if (sort_str,hbonds_str) in abba_hb_info.keys():
-            abba_hb_info[(sort_str,hbonds_str)].append(seq_str + "  " + clust + hbonds_str +sc_hbonds_str + '  score: %s '%score)
+            abba_hb_info[(sort_str,hbonds_str)].append((score,seq_str + "  " + clust + hbonds_str +sc_hbonds_str + '  score: %s '%score))
         else:
             abba_hb_info[(sort_str,hbonds_str)]=[]
-            abba_hb_info[(sort_str,hbonds_str)].append(seq_str + "  " + clust + hbonds_str +sc_hbonds_str + '  score: %s '%score)
+            abba_hb_info[(sort_str,hbonds_str)].append((score,seq_str + "  " + clust + hbonds_str +sc_hbonds_str + '  score: %s '%score))
     else:
         abba_strings[sort_str]=1
         hb_in_abba[sort_str]={}
         hb_in_abba[sort_str][hbonds_str]=1
         seq_in_abba[sort_str]=[]
         abba_hb_info[(sort_str,hbonds_str)]=[]
-        abba_hb_info[(sort_str,hbonds_str)].append(seq_str + "  " + clust + hbonds_str +sc_hbonds_str + '  score: %s '%score)
+        abba_hb_info[(sort_str,hbonds_str)].append( (score, seq_str + "  " + clust + hbonds_str +sc_hbonds_str + '  score: %s '%score))
         seq_in_abba[sort_str].append(seq_str + "  " +  clust + hbonds_str + sc_hbonds_str)
 #        index= entry[3].find('_0001')
 #        pdb_tag= entry[3][0:index]
@@ -284,10 +287,12 @@ for entry in inf:
             
         else:
             output=0
-    for x in abba_hb_info[entry]:
-        print x
+    sort_hb_info=abba_hb_info[entry]
+    sort_hb_info.sort()
+    for x in sort_hb_info:
+        print entry[0],x[1]
         if output:
-            out_file.write('%s \n'%x)
+            out_file.write('%s \n'%x[1])
 
 for sort_str in seq_in_abba.keys():
 #    print sort_str
