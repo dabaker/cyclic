@@ -30,8 +30,13 @@ for line in list_file:
     if max_hb_to_O > 2:
 	value='fail'
     pdb1=string.split(pdb,'/')[-1]
-    index= pdb1.find('_0001')
-    pdb_tag= pdb1[0:index]
+    if '_0001' in pdb1:
+        index= pdb1.find('_0001')
+        pdb_tag= pdb1[0:index]
+    else:
+        index= pdb1.find('.pdb')
+        pdb_tag= pdb1[0:index]
+
 #    pdb_tag=string.split(string.split(pdb,'/')[-1],'.')[0]
 #    print pdb_tag
     pathology[pdb_tag]=value
@@ -42,6 +47,7 @@ for line in list_file:
 #    print 'sc to O hbonds: ',sc_O_contacts
 #    print 'sc to N hbonds: ',sc_N_contacts
 
+print pathology
 
 
 decoy_num,info,names,seq,score=input_silent(input_file)
@@ -73,7 +79,7 @@ for decoy in info.keys():
  #       print offset, bin_str,permute[0],ori,permute
  #       print permute
         abba.append( (bin_str,decoy,permute[0],names[decoy],offset,seq[decoy],score[decoy]) )
- 
+#print num,' NUM1' 
 ndecoy=len(abba)
 for i in range(ndecoy):
     entry=abba[i]
@@ -98,7 +104,7 @@ for i in range(ndecoy):
   #      print offset, bin_str,permute[0]
  #       print permute
         abba.append( (bin_str,entry[1],permute[0],entry[3]+"_inv",offset,entry[5]+"_inv",entry[6]) )
-
+#print num, ' NUM1'
 torsion_strings={}
 torsion_strings_inv={}
 seqs={}
@@ -127,7 +133,7 @@ for entry in abba:
 #print 'pdb   pathology  seq   score bb_hbonds  tor_bins  alphabet_tor_bins  inv_tor_bins  alphabet_inv_ter_bins'
 #for pdb_tag in torsion_strings.keys():
 
- #   print pdb_tag,pathology[pdb_tag],seqs[pdb_tag],scores[pdb_tag],hbond_list[pdb_tag],torsion_strings[pdb_tag][0],torsion_strings[pdb_tag][1],torsion_strings_inv[pdb_tag][0],torsion_strings_inv[pdb_tag][1]
+ #  print pdb_tag,pathology[pdb_tag],seqs[pdb_tag],scores[pdb_tag],hbond_list[pdb_tag],torsion_strings[pdb_tag][0],torsion_strings[pdb_tag][1],torsion_strings_inv[pdb_tag][0],torsion_strings_inv[pdb_tag][1]
 abba_strings={}
 abba_names={}
 cluster_strings={}
@@ -144,6 +150,9 @@ for entry in abba:
     if "inv" in entry[3]:
         inv=1
     pdb_tag= entry[3][0:index]
+    if pdb_tag not in pathology.keys(): 
+        print 'Skipping missing pdb: ',pdb_tag
+        continue
     if pathology[pdb_tag]=='fail': 
         print 'Removed 3 hb pathology: ', pdb_tag
         continue
@@ -201,6 +210,7 @@ for entry in abba:
 
     for hbond in hbond_list[pdb_tag]:
         offset_hbonds.append( ( (hbond[0] -1 -offset)%num,(hbond[1]-1 -offset)%num))
+  #  if pdb_tag=='c.11.96': print offset,hbond_list[pdb_tag],offset_hbonds,num, bin_str
     offset_hbonds.sort()
     hbonds_str='  bb:'
     for hb in offset_hbonds:
@@ -227,17 +237,17 @@ for entry in abba:
             hb_in_abba[sort_str][hbonds_str]=1
         seq_in_abba[sort_str].append(seq_str + "  " + clust + hbonds_str +sc_hbonds_str)
         if (sort_str,hbonds_str) in abba_hb_info.keys():
-            abba_hb_info[(sort_str,hbonds_str)].append((score,seq_str + "  " + clust + hbonds_str +sc_hbonds_str + '  score: %s '%score))
+            abba_hb_info[(sort_str,hbonds_str)].append((score,seq_str + "  " + clust + hbonds_str +sc_hbonds_str,offset_hbonds))
         else:
             abba_hb_info[(sort_str,hbonds_str)]=[]
-            abba_hb_info[(sort_str,hbonds_str)].append((score,seq_str + "  " + clust + hbonds_str +sc_hbonds_str + '  score: %s '%score))
+            abba_hb_info[(sort_str,hbonds_str)].append((score,seq_str + "  " + clust + hbonds_str +sc_hbonds_str,offset_hbonds))
     else:
         abba_strings[sort_str]=1
         hb_in_abba[sort_str]={}
         hb_in_abba[sort_str][hbonds_str]=1
         seq_in_abba[sort_str]=[]
         abba_hb_info[(sort_str,hbonds_str)]=[]
-        abba_hb_info[(sort_str,hbonds_str)].append( (score, seq_str + "  " + clust + hbonds_str +sc_hbonds_str + '  score: %s '%score))
+        abba_hb_info[(sort_str,hbonds_str)].append( (score, seq_str + "  " + clust + hbonds_str +sc_hbonds_str,offset_hbonds))
         seq_in_abba[sort_str].append(seq_str + "  " +  clust + hbonds_str + sc_hbonds_str)
 #        index= entry[3].find('_0001')
 #        pdb_tag= entry[3][0:index]
@@ -271,14 +281,45 @@ for entry in str_list:
 for entry in str_list:
     print 'hb patterns: ',entry[1],"  ",entry[4]," ",entry[0],"  ",entry[3]
 
+# to reduce number of groups, for each ABBA string, assign groups with hbond patters
+# completely contained within a second group to that second group
+
+
 inf=abba_hb_info.keys()
 inf.sort()
 prev_ABBA=''
+
+hb_list_in_ABBA={}
+## ****not currently using next two blocks which are for collapsing hb_patterns ***
+for entry in inf:
+    bin_str=entry[0]
+    hb=entry[1]
+    if bin_str != prev_ABBA:
+        if prev_ABBA != '': hb_list_in_ABBA[prev_ABBA]=hb_patterns
+        hb_patterns=[]
+        prev_ABBA=bin_str
+#    print bin_str,hb,abba_hb_info[(bin_str,hb)]
+    hb_patterns.append( (abba_hb_info[(bin_str,hb)][0][2],hb) )
+
+for bin_str in hb_list_in_ABBA.keys():
+    for hb_l1 in hb_list_in_ABBA[bin_str]:
+        hb_list1=hb_l1[0]
+        hb1=hb_l1[1]
+        for hb_l2 in hb_list_in_ABBA[bin_str]:
+            hb_list2=hb_l2[0]
+            hb2=hb_l2[1]
+            if hb_list1 != hb_list2:
+                if set(hb_list1) < set(hb_list2):
+                    hb_list_in_ABBA[(bin_str,hb1)]=hb_list2
+#                    print bin_str,hb_list1,hb_list2
+                if set(hb_list2) < set(hb_list1):
+                    hb_list_in_ABBA[(bin_str,hb2)]=hb_list1
+ #                   print bin_str,hb_list1,hb_list2
+SubGroup_list=[]
 for entry in inf:
     if entry[0] != prev_ABBA:
-
         print
-        print entry[0]
+        print '*****Group: ', entry[0],'****'
         prev_ABBA=entry[0]
         if abba_strings[entry[0]]>6:
             output=1
@@ -287,12 +328,35 @@ for entry in inf:
             
         else:
             output=0
+
     sort_hb_info=abba_hb_info[entry]
     sort_hb_info.sort()
+    hb_list=sort_hb_info[0][2]
+    bin_str=entry[0]
+    score=sort_hb_info[0][0]
+# following two lines collapse hb_lists
+# disable for now as sometimes fewer hbonds give better energies
+#    if (bin_str,entry[1]) in hb_list_in_ABBA.keys():
+#        hb_list=hb_list_in_ABBA[(bin_str,entry[1])]
+    turns= find_turn_types(bin_str,hb_list)    
+    turn_str=''
+    for turn in turns:
+        turn_str=turn_str+'%s%s '%(turn[2],turn[3])
+    print 'SubGroup size: %s '%len(sort_hb_info),' ',bin_str,' ',sort_hb_info[0][1],' turns: ',turn_str,' score: %s'%score
+    SubGroup_list.append( (score,bin_str,sort_hb_info,turn_str) )
+#    print 'Group size: %s '%len(sort_hb_info),' ',entry[0],' ',sort_hb_info[0][1],hb_list,find_turn_types(entry[0],sort_hb_info[0][2])
     for x in sort_hb_info:
-        print entry[0],x[1]
+        print entry[0],x[1],'score: ',x[0]
         if output:
-            out_file.write('%s \n'%x[1])
+            out_file.write('%s %s \n'%(x[1],x[0]))
+
+SubGroup_list.sort()
+outf=open('SubGroups.dat','w')
+for entry in SubGroup_list:
+    if entry[0] < -3.:
+        outf.write('SubGroup size: %5d %s %25s  turns: %s score: %s \n'%(len(entry[2]),entry[1],entry[2][0][1],entry[3],entry[0]))
+
+
 
 for sort_str in seq_in_abba.keys():
 #    print sort_str

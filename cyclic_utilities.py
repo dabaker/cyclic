@@ -16,6 +16,7 @@ def get_Pbin(phi,psi,omega,psi_prev):
    return Pbin
 
 def get_abba(phi,psi,omega):
+   split_B_bin=0
    if (omega==None and phi==None and psi==None):
        return "I"
    elif (omega<90.0 and omega>-90.0):
@@ -28,29 +29,65 @@ def get_abba(phi,psi,omega):
            if (psi <50.0 and psi > -80.0):
                return "A"
            else:
-               return "B"
+             if  split_B_bin:
+               if (psi >0):
+                  return "B"
+               else:
+                  return "C"
+             else:
+                return "B"
        else:
            if (psi <80.0 and psi > -50.0):
                return "X"  	### Aprime
            else:
-               return "Y"		### Bprime
+             if split_B_bin:
+              if (psi < 0) :
+                 return "Y"
+              else:
+                 return "W"  ### Bprime
+             else:
+                return "Y"
 
 def get_tor_bin_freqs(tor_bin_list):
 #calculate frequencies of torsion bins
  bin_freq={}
- bin_freq['A']=0.
- bin_freq['B']=0.
- bin_freq['X']=0.
- bin_freq['Y']=0.
+ tot=0
  for tor_bin in tor_bin_list:
 	for tor in list(tor_bin):
+           tot=tot+1
+           if tor in bin_freq.keys():
 		bin_freq[tor]=bin_freq[tor]+1
- tot=bin_freq['A']+bin_freq['B']+bin_freq['X']+bin_freq['Y']
- ax=(bin_freq['A']+bin_freq['X'])/tot
- by=(bin_freq['B']+bin_freq['Y'])/tot
+           else:
+                bin_freq[tor]=1
+
+ ax=(bin_freq['A']+bin_freq['X'])/float(tot)
+ by=(bin_freq['B']+bin_freq['Y'])/float(tot)
+ oz=(bin_freq['O']+bin_freq['Z'])/float(tot)
 # print 'bin_freq',bin_freq,' symmetrized: ',ax,by
- return bin_freq,ax,by,tot
+ return bin_freq,ax,by,oz,tot
  
+def get_tor_bin_freqs_per_position(tor_bin_list):
+   bin_count=[]
+   nres=len(tor_bin_list[0])
+   ndecoy=len(tor_bin_list)
+   for i in range(nres):
+      bin_count.append({})
+
+   for i in range(ndecoy):
+      bin_str=list(tor_bin_list[i])
+   
+      for j in range(nres):
+       r=bin_str[j]
+       if r in bin_count[j].keys():
+         bin_count[j][r]=bin_count[j][r]+1
+       else:
+         bin_count[j][r]=1
+
+   print '########## per position counts  '
+   print 'position  A     X      B     Y  '
+   for i in range(nres):
+      print '%4d %6d %6d %6d %6d'%(i+1,bin_count[i]['A'],bin_count[i]['X'],bin_count[i]['B'],bin_count[i]['Y'])
+
 
 
 def get_seqbin(seq):
@@ -101,6 +138,8 @@ def invert_ABBA(instring):
       if bin == 'Z': outstring=outstring+'O'
       if bin == 'P': outstring=outstring+'Q'
       if bin == 'Q': outstring=outstring+'P'
+      if bin == 'C': outstring=outstring+'W'
+      if bin == 'W': outstring=outstring+'C'
 #   print instring, outstring
    return outstring
 
@@ -265,14 +304,22 @@ def parse_seq(s):
             res=res+1
     return seq_n   
 
+def get_torsions_from_ideal_pdb(pdb):
+   torsions={}
+   
+   lines=map(string.split,popen('grep REMARK %s | grep -v torsions'%pdb).readlines())
+   for line in lines:
+      torsions[int(line[2])]=(get_abba(float(line[6]),float(line[7]),float(line[8])))
+   return torsions
+
 def compute_contacts(pdb,res_column,cutoff2):
 # note changed from "N" to "H"; list names don't reflect this
     min_sep=2   ## don't count contacts between adjacent residues
     max_hb_to_O=0
     contacts= []
     N_hbonds=[]
-    coords_N = map(string.split,popen('grep " H   " '+ pdb).readlines())
-    coords_O = map(string.split,popen('grep " O   " '+ pdb).readlines())
+    coords_N = map(string.split,popen('grep " H   "  %s | grep ATOM'%pdb).readlines())
+    coords_O = map(string.split,popen('grep " O   " %s | grep ATOM'%pdb).readlines())
 
 
 
@@ -283,15 +330,22 @@ def compute_contacts(pdb,res_column,cutoff2):
     for i in range(len(coords_O)):
         N_contacts=0
         for j  in range(len(coords_N)):
-          if i != j:
+          
+          res1=int(coords_O[i][res_column])
+          try:
+             res2=int(coords_N[j][res_column])
+          except:
+             print 'PDB read error:',pdb,res2
+             exit()
+          if res1 != res2:
             xyz1=map(float,[coords_O[i][res_column +1],coords_O[i][res_column+2],coords_O[i][res_column+3]])
             xyz2=map(float,[coords_N[j][res_column+1],coords_N[j][res_column+2],coords_N[j][res_column+3]])
 #            print coords[i][5]
-            res1=int(coords_O[i][res_column])
-            res2=int(coords_N[j][res_column])
+
             dist=0
             for k in range(3):
                      dist=dist+(xyz1[k]-xyz2[k])**2
+#            print res1,res2,dist
             if dist < cutoff2:
                 if abs(res1-res2) > min_sep and abs(res1-res2) < (nres-min_sep): 
                  N_contacts=N_contacts+1
@@ -334,3 +388,84 @@ def compute_contacts(pdb,res_column,cutoff2):
 #                        print 'sc to N', coords_N[i],coords_sc[j]
               ## print res1,res2,dist
     return contacts , N_hbonds, max_hb_to_O, sc_O_contacts, sc_N_contacts
+
+def find_turn_types(bin_str,hbonds):
+  names=['i:i+3','i:i+3 | i:i+4','i:i+3 | i+1:i+4','i:i+3 | i+1:i+4 | i:i+4','i:i+4 ','i:i+4 | i:i+5','i:i+4 | i+1:i+5']
+  names=['','a','b','ab','','a','b']
+  exclude=[]
+  turn_list=[]
+  nres=len(bin_str)
+  for hbond in hbonds:
+        if hbond in exclude: continue   # only count hbond in one configuration
+        res1=hbond[0]
+        res2=hbond[1]
+        if ( (res2-res1) == 3 or (res1-res2) == (nres-3)):
+#  i, i+3 hbond from CO of res1 to NH of res2
+
+# check for case 2 and 3 together
+            if ( ((res1+1)%nres),((res2+1)%nres) ) in hbonds and  (  res1 , (res2+1)%nres) in hbonds:
+                if res2 > res1:
+                    str=bin_str[res1+1:res2+1]
+                else:
+                    str=bin_str[(res1+1):nres] + bin_str[0:res2+1]
+                exclude.append(((res1+1)%nres+1,((res2+1)%nres)+1 ))
+                exclude.append ((  res1 + 1, (res2+1)%nres+1))
+                turn_list.append( (res1,res2,str,names[3]) )
+
+            elif (  res1, (res2+1)%nres) in hbonds:
+#case 2
+                exclude.append( ( ( (res1)%nres) , (res2+1)%nres))
+
+                if res2 > res1:
+                    str=bin_str[ res1+1:res2+1]
+                else:
+                    str=bin_str[(res1+1):nres]+bin_str[0:res2+1]
+                turn_list.append( (res1,res2,str,names[1] ) )
+
+            elif ( ((res1+1)%nres),((res2+1)%nres) ) in hbonds:
+#case 3
+                exclude.append( ((res1+1)%nres,((res2+1)%nres)) )
+                if res2 > res1:
+                    str=bin_str[res1+1:res2+1]
+                else:
+                    str=bin_str[(res1+1):nres] + bin_str[0:res2+1]
+                turn_list.append( (res1,res2,str,names[2] ) )
+            else:
+#case 1
+
+                if res2 > res1:
+                    str=bin_str[res1+1:res2]
+                else:
+                    str=bin_str[(res1+1):nres] + bin_str[0:res2]
+                turn_list.append( (res1,res2,str,names[0]) )
+        else:
+# 3 resideue turn
+             if ( (res2-res1) == 4 or (res1-res2) == (nres-4)):
+                if res2==0: 
+                    r2=nres
+                else:
+                    r2=res2
+                if ( (res1+1), r2) in hbonds: continue
+
+                if ( (res1+1)%nres , (res2+1)%nres ) in hbonds:
+                  exclude.append(( (res1+1)%nres , (res2+1)%nres ))
+                  if res2 > res1:
+                    str=bin_str[res1+1:res2+1]
+                  else:
+                    str=bin_str[(res1+1):nres] + bin_str[0:res2+1]
+                  turn_list.append( (res1,res2,str,names[5]))
+                elif ( (res1),(res2+1)%nres) in hbonds:
+                    exclude.append( ( (res1),(res2+1)%nres))
+                    if res2 > res1:
+                        str=bin_str[res1+1:res2+1]
+                    else:
+                        str=bin_str[res1+1:nres]+bin_str[0:res2+1]
+                    turn_list.append( (res1,res2,str,names[6]) )    
+                elif res2 > res1:
+                    str=bin_str[res1+1:res2]
+                    turn_list.append( (res1,res2,str,names[4]) )
+                else:
+                    str=bin_str[res1+1:nres]+bin_str[0:res2]
+                    turn_list.append( (res1,res2,str,names[4]))
+
+  return turn_list 
