@@ -304,6 +304,29 @@ def parse_seq(s):
             res=res+1
     return seq_n   
 
+def parse_seq_pose(x):
+    d_aa=['DALA','DCYS','DASP','DGLU','DPHE','DGLY','DHIS','DILE','DLYS','DLEU','DMET','DASN','DPRO','DGLN','DARG','DSER','DTHR','DVAL','DTRP','DTYR','DHIS_D']
+    aa=['A','C','D','E','F','G','H','I','K','L','M','N','P','Q','R','S','T','V','W','Y','HIS_D']
+    d_aa_1=['a','c','d','e','f','g','h','i','k','l','m','n','p','q','r','s','t','v','w','y','h']
+    aa_1=['A','C','D','E','F','G','H','I','K','L','M','N','P','Q','R','S','T','V','W','Y','H']
+    aa_3=['ALA','CYS','ASP','GLU','PHE','GLY','HIS','ILE','LYS','LEU','MET','ASN','PRO','GLN','ARG','SER','THR','VAL','TRP','TYR','HIS_D'] 
+    seq_n=[]
+    for i in range(len(x)):
+     if ':' in x[i]:
+        res=string.split(x[i],':')[0]
+     else:
+        res = x[i]
+
+     if res in d_aa:
+             str=d_aa_1[d_aa.index(res)]
+     elif res in aa_3:
+             str=aa_1[aa_3.index(res)]
+     else:
+        print 'no occurence of: ', res
+     seq_n.append(str)
+
+    return seq_n  
+
 def get_torsions_from_ideal_pdb(pdb):
    torsions={}
    
