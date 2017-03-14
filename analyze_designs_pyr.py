@@ -8,13 +8,17 @@ if len(argv) <=1:
     print '\n'
     print 'USAGE: %s <silent file>  '%argv[0]
     print '\n output torsion bin strings and hb maps of non pathological designs '
-    print '\n recommend distance_cutoff of 2.5 \n'
+    print '\n to set number of structures written to cluster files use num_to_output \n'
     print 'designs with hbond pathology and aro-pro motifs flagged \n'
     print 'SubGroup.dat file lists lowest energy member of each group'
     exit()
 args = argv[1:]
 input_file=args[0]
-
+num_to_output=20
+if args.count('num_to_output'):
+    pos=args.index('num_to_output')
+    num_to_output=int(args[pos+1])
+    print 'number of structures written to cluster files: ',num_to_output
 init_pyrosetta()
 t,h,score_list_ori,seq_list_ori=input_silent_score_seq(input_file)
 #print seq_list_ori
@@ -381,10 +385,14 @@ for entry in inf:
     print 'SubGroup size: %s '%len(sort_hb_info),' ',bin_str,' ',sort_hb_info[0][1],' turns: ',turn_str,' score: %s'%score
     SubGroup_list.append( (score,bin_str,sort_hb_info,turn_str) )
 #    print 'Group size: %s '%len(sort_hb_info),' ',entry[0],' ',sort_hb_info[0][1],hb_list,find_turn_types(entry[0],sort_hb_info[0][2])
+
+    counter=0
     for x in sort_hb_info:
-        print entry[0],x[1],'score: ',x[0]
+        print '%s %s energy: %7.3f '%(entry[0],x[1],x[0])
         if output:
-            out_file.write('%s %s \n'%(x[1],x[0]))
+            counter=counter+1
+            if counter <= num_to_output: 
+                 out_file.write('%s %7.3f \n'%(x[1],x[0]))
 
 SubGroup_list.sort()
 outf=open('SubGroups.dat','w')

@@ -1,6 +1,8 @@
- #!/work/sheffler/anaconda2/bin/ipython
+#!/work/sheffler/anaconda2/bin/ipython
 from pyrosetta import rosetta,init,Pose
-from rosetta.core.io.silent import SilentFileData as SilentFileData
+#from rosetta.core.io.silent import SilentFileData as SilentFileData
+from rosetta.core.io.silent import SilentFileData, SilentFileOptions
+from rosetta.protocols.cyclic_peptide import *
 
 def init_pyrosetta():
     init("-beta_nov15 -mute all")
@@ -8,7 +10,8 @@ def init_pyrosetta():
 def input_silent(filename):
     hbond_list={}
     torsion_list={}
-    sfd=SilentFileData()
+#    sfd=SilentFileData()
+    sfd = SilentFileData(SilentFileOptions())
     sfd.read_file(filename)
     p=Pose()
     sf_tags=sfd.tags()
@@ -24,7 +27,8 @@ def input_silent_score_seq(filename):
     torsion_list={}
     score_list={}
     seq_list={}
-    sfd=SilentFileData()
+   #  sfd=SilentFileData()
+    sfd = SilentFileData(SilentFileOptions())
     sfd.read_file(filename)
     p=Pose()
     sf_tags=sfd.tags()
@@ -51,7 +55,9 @@ def get_torsions(p):
 def score_pose(p):
     scorefxn_tal_name="beta_nov15"
     scorefxn = rosetta.core.scoring.ScoreFunctionFactory.create_score_function(scorefxn_tal_name)
-    rosetta.protocols.cyclic_peptide.declare_qbond
+    pc=PeptideCyclizeMover()
+    # help (pc)
+    pc.apply(p)
     energymethodoptions=scorefxn.energy_method_options()
     energymethodoptions.hbond_options().decompose_bb_hb_into_pair_energies(True)
     scorefxn.set_energy_method_options( energymethodoptions );
@@ -59,6 +65,8 @@ def score_pose(p):
 
 
 def find_hbonds(p):
+    x=score_pose(p)
+    #p.dump_pdb('temp.pdb')
     p.update_residue_neighbors();
     hbond_set = rosetta.core.scoring.hbonds.HBondSet()
     rosetta.core.scoring.hbonds.fill_hbond_set(p, False, hbond_set)
